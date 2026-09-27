@@ -12,6 +12,10 @@ import "./index.css";
 // than by two entry points.
 const isSubtitleWindow = getCurrentWindow().label === "subtitle";
 
+if (!isSubtitleWindow) {
+  document.documentElement.classList.add("app-shell");
+}
+
 // No React.StrictMode: its dev-only double-invoke of effects races Tauri's
 // async listen()/unlisten() (see subscribe() in lib/ipc.ts) and was causing
 // every chat event to be delivered twice in `tauri dev`. That double-invoke

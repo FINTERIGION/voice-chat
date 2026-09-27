@@ -4,6 +4,10 @@ A desktop app for real-time, hands-free voice conversations with customizable AI
 
 Talk to it like a phone call: open the mic once and keep talking. The app detects when you've finished a sentence, sends it automatically, and you can interrupt the reply just by speaking over it.
 
+## Download
+
+Windows installers are attached to [GitHub Releases](https://github.com/FINTERIGION/voice-chat/releases/latest). On first launch, open **Settings**, paste a [Model Studio API key](https://bailian.console.aliyun.com/), and use **Test connectivity** to confirm it works.
+
 ## Features
 
 **Conversation**
@@ -37,7 +41,6 @@ Talk to it like a phone call: open the mic once and keep talking. The app detect
 - **Windows** — the API key is stored in the Windows Credential Manager
 - [Node.js](https://nodejs.org/) 20+
 - [Rust](https://www.rust-lang.org/tools/install) 1.85+ (edition 2024)
-- A Model Studio API key ([get one here](https://bailian.console.aliyun.com/))
 
 
 
@@ -53,8 +56,6 @@ To build a release bundle:
 ```bash
 npm run tauri build
 ```
-
-On first launch, open **Settings** and paste your API key, then use **Test connectivity** to confirm it works.
 
 ## Models Used
 

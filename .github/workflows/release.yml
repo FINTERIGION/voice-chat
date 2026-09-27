@@ -2,8 +2,7 @@ name: Release
 
 # Pushing a version tag (`v0.2.0`) builds the Windows installers and attaches
 # them to a draft GitHub release, together with the `latest.json` the in-app
-# updater reads. The app only sees a release once the draft is published —
-# see "Releasing" in README.md.
+# updater reads. The app only sees a release once the draft is published.
 on:
   push:
     tags: ["v*"]

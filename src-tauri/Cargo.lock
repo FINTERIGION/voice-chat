@@ -5519,7 +5519,7 @@ dependencies = [
 
 [[package]]
 name = "voice-chat"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "audioadapter-buffers",
  "base64 0.23.1",
@@ -5532,6 +5532,7 @@ dependencies = [
  "ringbuf",
  "rubato",
  "rusqlite",
+ "rustls",
  "serde",
  "serde_json",
  "tauri",

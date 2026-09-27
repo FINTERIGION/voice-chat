@@ -5,6 +5,19 @@
   scrollbar-color: var(--color-neutral-700) transparent;
 }
 
+/* Main window only (`app-shell` is not set on the transparent subtitle
+   window). Keeps the webview's default white from showing at the edges.
+   Overscroll is stopped here rather than on every element, so trackpad
+   swipes don't rubber-band the page while a nested scroll box that hits its
+   end still hands the scroll on to the one around it. */
+html.app-shell,
+html.app-shell body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  background-color: var(--color-neutral-950);
+}
+
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;

@@ -132,6 +132,47 @@ pub async fn summarize_conversation(
     parse_summary(&raw, known_facts.len())
 }
 
+/// The summarizer sometimes stops (`finish_reason: stop`) with the outermost
+/// `}` never emitted. The rest of the object is well-formed, so the missing
+/// closers can be put back, after dropping a dangling `,` a cut between two
+/// entries leaves behind. A cut inside a string is left alone: closing it
+/// would store text the model did not write.
+fn append_missing_closers(input: &str) -> Option<String> {
+    let mut stack = Vec::new();
+    let mut in_string = false;
+    let mut escape = false;
+    for c in input.chars() {
+        if in_string {
+            if escape {
+                escape = false;
+            } else if c == '\\' {
+                escape = true;
+            } else if c == '"' {
+                in_string = false;
+            }
+            continue;
+        }
+        match c {
+            '"' => in_string = true,
+            '{' => stack.push('}'),
+            '[' => stack.push(']'),
+            '}' | ']' => {
+                stack.pop()?;
+            }
+            _ => {}
+        }
+    }
+    if in_string || stack.is_empty() {
+        return None;
+    }
+    let body = input.trim_end();
+    let mut out = body.strip_suffix(',').unwrap_or(body).to_string();
+    while let Some(c) = stack.pop() {
+        out.push(c);
+    }
+    Some(out)
+}
+
 /// Reads the summarizer's JSON. `known_count` is how many facts it was shown,
 /// which bounds the revisions it can make.
 fn parse_summary(raw: &str, known_count: usize) -> Result<SummaryResult, String> {
@@ -147,17 +188,22 @@ fn parse_summary(raw: &str, known_count: usize) -> Result<SummaryResult, String>
         #[serde(default)]
         open_loops: Vec<String>,
     }
-    let parsed: Parsed = serde_json::from_str(raw.trim()).map_err(|e| {
-        crate::tr!(
-            format!(
-                "Could not parse the summary: {e}; raw: {}",
-                crate::dashscope::snippet(raw)
-            ),
-            format!(
-                "解析摘要失败: {e}; 原始: {}",
-                crate::dashscope::snippet(raw)
-            ),
-        )
+    let trimmed = raw.trim();
+    let parsed = serde_json::from_str::<Parsed>(trimmed).or_else(|err| {
+        append_missing_closers(trimmed)
+            .and_then(|repaired| serde_json::from_str(&repaired).ok())
+            .ok_or_else(|| {
+                crate::tr!(
+                    format!(
+                        "Could not parse the summary: {err}; raw: {}",
+                        crate::dashscope::snippet(raw)
+                    ),
+                    format!(
+                        "解析摘要失败: {err}; 原始: {}",
+                        crate::dashscope::snippet(raw)
+                    ),
+                )
+            })
     })?;
 
     Ok(SummaryResult {
@@ -476,6 +522,34 @@ mod tests {
             updated_at: at,
             ..m
         }
+    }
+
+    #[test]
+    fn summary_missing_its_closing_brace_still_parses() {
+        // Captured from a live `finish_reason: stop` response that ended on
+        // `"open_loops": []` with the outer `}` never sent.
+        let raw = r#"{"summary": "用户与小柔进行简短寒暄，表示今天过得还可以，但记不清最近有什么开心的小事。小柔回应说日子平平淡淡也没关系。", "facts": [], "revised_facts": [], "open_loops": []"#;
+        let result = parse_summary(raw, 0).expect("closer appended");
+        assert!(result.summary.contains("小柔"));
+        assert!(result.facts.is_empty());
+        assert!(result.open_loops.is_empty());
+
+        let nested = r#"{"summary": "用户与Emma闲聊", "facts": ["应用即将发布第二版本"], "revised_facts": [{"n": 1, "text": "用户已发布首个版本，即将发布第二版"}], "open_loops": []"#;
+        let nested = parse_summary(nested, 1).expect("nested closer appended");
+        assert_eq!(nested.facts, ["应用即将发布第二版本"]);
+        assert_eq!(
+            nested.revised_facts,
+            [FactRevision {
+                index: 0,
+                text: "用户已发布首个版本，即将发布第二版".into(),
+            }]
+        );
+
+        let comma = r#"{"summary": "聊了搬家", "facts": ["养了一只猫"], "open_loops": [], "#;
+        let comma = parse_summary(comma, 0).expect("dangling comma dropped");
+        assert_eq!(comma.facts, ["养了一只猫"]);
+
+        assert!(parse_summary(r#"{"summary": "还没说完"#, 0).is_err());
     }
 
     #[test]

@@ -102,8 +102,18 @@ fn seed_english_coach_character(
     Ok(())
 }
 
+/// `reqwest` turns on rustls's aws-lc-rs provider and `tauri-plugin-updater`
+/// turns on ring. Cargo unifies those features, so both are compiled in, and rustls
+/// then refuses to guess which one a handshake should use — it panics instead.
+/// That panic lands in the realtime socket, after the chat UI has already been
+/// told the session is connecting, so the screen stays on "连接中".
+fn install_crypto_provider() {
+    let _ = rustls::crypto::aws_lc_rs::default_provider().install_default();
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    install_crypto_provider();
     tracing_subscriber::fmt()
         .with_env_filter(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),
